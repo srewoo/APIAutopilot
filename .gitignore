@@ -27,6 +27,8 @@ node_modules/
 
 # Testing
 /coverage
+frontend.log
+backend.log
 
 # Next.js
 /.next/
