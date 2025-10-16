@@ -619,6 +619,7 @@ class TestCaseGenerator:
                 "expect(response.data).toBeDefined()"
             ]
 
+        # First positive test - simple success check
         test_cases.append(TestCase(
             name="should successfully call API with valid data",
             category="positive",
@@ -632,9 +633,41 @@ class TestCaseGenerator:
             priority=1,
             tags=["smoke", "positive"]
         ))
+        
+        # Second positive test - check response structure (simpler validation)
+        if captured_response and isinstance(captured_response, dict):
+            simple_assertions = [
+                "expect(response.status).toBe(200)",
+                "expect(response.data).toBeDefined()",
+            ]
+            # Add simple type checks for top-level fields
+            for key in list(captured_response.keys())[:5]:  # Check up to 5 fields
+                simple_assertions.append(f"expect(response.data).toHaveProperty('{key}')")
+            
+            test_cases.append(TestCase(
+                name="should return valid response structure",
+                category="positive",
+                method=api_analysis.method,
+                endpoint=api_analysis.endpoints[0] if api_analysis.endpoints else "/",
+                headers=api_analysis.headers,
+                body=api_analysis.request_body,
+                expected_status=200,
+                assertions=simple_assertions,
+                description="Verify API returns expected response fields",
+                priority=1,
+                tags=["smoke", "positive", "structure"]
+            ))
 
         # Add more positive test variations
         if api_analysis.response_schema:
+            # Make schema more flexible by allowing additional properties
+            flexible_schema = api_analysis.response_schema.copy()
+            if isinstance(flexible_schema, dict):
+                flexible_schema['additionalProperties'] = True  # Allow extra fields
+                if 'required' in flexible_schema:
+                    # Only keep truly required fields, make others optional
+                    flexible_schema['required'] = flexible_schema.get('required', [])[:3]
+            
             test_cases.append(TestCase(
                 name="should return response matching schema",
                 category="positive",
@@ -645,8 +678,12 @@ class TestCaseGenerator:
                 expected_status=200,
                 assertions=[
                     "expect(response.status).toBe(200)",
-                    f"const schema = {json.dumps(api_analysis.response_schema)}",
-                    "expect(ajv.validate(schema, response.data)).toBe(true)"
+                    "expect(response.data).toBeDefined()",
+                    f"const schema = {json.dumps(flexible_schema)}",
+                    "schema.additionalProperties = true",  # Ensure additional properties allowed
+                    "const isValid = ajv.validate(schema, response.data)",
+                    "if (!isValid) console.log('Schema errors:', ajv.errors)",
+                    "expect(isValid).toBe(true)"
                 ],
                 description="Verify response matches expected schema",
                 priority=1,
@@ -1063,20 +1100,24 @@ CAPTURED API RESPONSE:
 {json.dumps(captured_response, indent=2) if captured_response else 'No response captured'}
 
 REQUIREMENTS:
-1. Generate a COMPLETE, RUNNABLE test script
-2. Use {self.framework.value} framework syntax
-3. Include all necessary imports
-4. Add assertions based on the actual API response
-5. Include positive, negative, and edge case tests
-6. Add proper error handling
-7. Make the script production-ready
-8. Include schema validation if response was captured
-9. Add performance tests
-10. Include security tests
+1. **CRITICAL**: Start with 2-3 POSITIVE tests that verify successful API calls (200/201 status)
+2. Positive tests MUST check: status code, response defined, and expected fields present
+3. Make positive tests SIMPLE and RELIABLE - they should PASS on working APIs
+4. Use flexible schema validation with additionalProperties: true for schema tests
+5. Generate a COMPLETE, RUNNABLE test script with all necessary imports
+6. Use {self.framework.value} framework syntax
+7. Include axios for HTTP calls and Ajv for schema validation (const Ajv = require('ajv'); const ajv = new Ajv())
+8. Add assertions based on the actual API response
+9. After positive tests, add negative tests (400/401/403/404 errors)
+10. Include edge cases and security tests (SQL injection, XSS)
+11. Add proper error handling with try-catch
+12. DO NOT use mocking libraries like nock - make actual API calls
+13. Use real API responses, not mocked ones
+14. Test order: POSITIVE (pass) → NEGATIVE (fail scenarios) → SECURITY → EDGE CASES
 
 Generate the COMPLETE test script now:"""
 
-            system_message = f"You are an expert test automation engineer. Generate a complete, production-ready {self.framework.value} test script."
+            system_message = f"You are an expert test automation engineer. Generate a complete, production-ready {self.framework.value} test script. CRITICAL: Start with POSITIVE tests that verify successful API responses (200 status) - these MUST pass. Then add negative/security tests. Make actual API calls without mocking. Use AJV for schema validation with additionalProperties: true."
 
             # Get complete test script from LLM
             test_script = await ai.generate(

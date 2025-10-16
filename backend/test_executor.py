@@ -13,6 +13,7 @@ import asyncio
 import re
 import time
 import logging
+import hashlib
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -366,11 +367,26 @@ class TestExecutor:
                 for test_suite in result_json.get("testResults", []):
                     for test in test_suite.get("assertionResults", []):
                         status = TestStatus.PASSED if test["status"] == "passed" else TestStatus.FAILED
+
+                        # Parse failure message for expected vs actual
+                        error_message = None
+                        stack_trace = None
+                        if status == TestStatus.FAILED and test.get("failureMessages"):
+                            full_error = test["failureMessages"][0]
+                            error_message = full_error
+
+                            # Try to extract stack trace
+                            if "\n    at " in full_error:
+                                parts = full_error.split("\n    at ", 1)
+                                error_message = parts[0]
+                                stack_trace = "    at " + parts[1]
+
                         test_result = TestResult(
                             name=test["title"],
                             status=status,
                             duration=test.get("duration", 0) / 1000,
-                            error_message=test.get("failureMessages", [""])[0] if status == TestStatus.FAILED else None
+                            error_message=error_message,
+                            stack_trace=stack_trace
                         )
                         test_results.append(test_result)
                         total_tests += 1
@@ -688,7 +704,12 @@ class TestRunner:
                         "name": tr.name,
                         "status": tr.status.value,
                         "duration": tr.duration,
-                        "error": tr.error_message
+                        "error": {
+                            "message": tr.error_message,
+                            "stack": tr.stack_trace,
+                            "expected": self._extract_expected(tr.error_message) if tr.error_message else None,
+                            "actual": self._extract_actual(tr.error_message) if tr.error_message else None
+                        } if tr.error_message else None
                     }
                     for tr in execution_result.test_results
                 ]
@@ -702,6 +723,46 @@ class TestRunner:
         self.results_cache[cache_key] = report
 
         return report
+
+    def _extract_expected(self, error_message: str) -> Optional[str]:
+        """Extract expected value from error message"""
+        if not error_message:
+            return None
+
+        # Look for common patterns
+        patterns = [
+            r"Expected: (.+?)(?:\n|$)",
+            r"expected (.+?) to (?:be|equal|match) (.+?)(?:\n|$)",
+            r"Expected.*?to receive (.+?)(?:\n|$)",
+            r"Expected.*?: (.+?)(?:\n|Received|$)"
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, error_message, re.IGNORECASE)
+            if match:
+                return match.group(1).strip() if match.lastindex == 1 else match.group(2).strip()
+
+        return None
+
+    def _extract_actual(self, error_message: str) -> Optional[str]:
+        """Extract actual value from error message"""
+        if not error_message:
+            return None
+
+        # Look for common patterns
+        patterns = [
+            r"Received: (.+?)(?:\n|$)",
+            r"Actual: (.+?)(?:\n|$)",
+            r"but (?:got|received|was) (.+?)(?:\n|$)",
+            r"Received.*?: (.+?)(?:\n|$)"
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, error_message, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+
+        return None
 
     async def _generate_coverage_report(self, test_code: str, framework: str) -> Optional[Dict[str, Any]]:
         """Generate code coverage report"""
