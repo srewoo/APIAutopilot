@@ -183,7 +183,7 @@ class TestExecutor:
                 "dependencies": {
                     framework: "latest",
                     "axios": "latest",
-                    "ajv": "latest"
+                    "joi": "latest"
                 }
             }
 
@@ -579,9 +579,9 @@ class TestExecutor:
             if "require('axios')" in code or "import axios" in code:
                 if "axios" not in missing:
                     missing.append("axios")
-            if "require('ajv')" in code or "import Ajv" in code:
-                if "ajv" not in missing:
-                    missing.append("ajv")
+            if "require('joi')" in code or "import Joi" in code or "from 'joi'" in code:
+                if "joi" not in missing:
+                    missing.append("joi")
 
         elif framework in ["pytest", "requests"]:
             # Check Python imports

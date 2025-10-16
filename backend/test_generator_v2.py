@@ -138,8 +138,7 @@ class TemplateEngine:
         if self.framework == TestFramework.JEST:
             return {
                 "file": """const axios = require('axios');
-const Ajv = require('ajv');
-const ajv = new Ajv();
+const Joi = require('joi');
 
 // Test Configuration
 const BASE_URL = '{base_url}';
@@ -202,9 +201,9 @@ describe('{suite_name}', () => {{
 
                 "schema_validation": """
     const schema = {schema};
-    const valid = ajv.validate(schema, response.data);
-    expect(valid).toBe(true);
-    if (!valid) console.log(ajv.errors);"""
+    const { error } = schema.validate(response.data);
+    expect(error).toBeUndefined();
+    if (error) console.log('Validation error:', error.details);"""
             }
 
         elif self.framework == TestFramework.PYTEST:
@@ -679,11 +678,10 @@ class TestCaseGenerator:
                 assertions=[
                     "expect(response.status).toBe(200)",
                     "expect(response.data).toBeDefined()",
-                    f"const schema = {json.dumps(flexible_schema)}",
-                    "schema.additionalProperties = true",  # Ensure additional properties allowed
-                    "const isValid = ajv.validate(schema, response.data)",
-                    "if (!isValid) console.log('Schema errors:', ajv.errors)",
-                    "expect(isValid).toBe(true)"
+                    f"const schema = {self._convert_to_joi_schema(flexible_schema)}",
+                    "const {{ error }} = schema.validate(response.data)",
+                    "if (error) console.log('Validation error:', error.details)",
+                    "expect(error).toBeUndefined()"
                 ],
                 description="Verify response matches expected schema",
                 priority=1,
@@ -1055,6 +1053,46 @@ class IntelligentTestGenerator:
 
         return build_schema(response_data)
 
+    def _convert_to_joi_schema(self, json_schema: dict) -> str:
+        """
+        Convert JSON Schema to Joi schema code
+        """
+        def build_joi(schema_part):
+            if not isinstance(schema_part, dict):
+                return "Joi.any()"
+            
+            schema_type = schema_part.get('type', 'any')
+            
+            if schema_type == 'object':
+                properties = schema_part.get('properties', {})
+                if properties:
+                    props = []
+                    for key, value in properties.items():
+                        joi_def = build_joi(value)
+                        required = key in schema_part.get('required', [])
+                        if required:
+                            props.append(f'  {key}: {joi_def}.required()')
+                        else:
+                            props.append(f'  {key}: {joi_def}')
+                    props_str = ',\n'.join(props)
+                    return f"Joi.object({{\n{props_str}\n}}).unknown(true)"
+                return "Joi.object().unknown(true)"
+            elif schema_type == 'array':
+                items = schema_part.get('items', {})
+                return f"Joi.array().items({build_joi(items)})"
+            elif schema_type == 'string':
+                return "Joi.string()"
+            elif schema_type == 'number':
+                return "Joi.number()"
+            elif schema_type == 'integer':
+                return "Joi.number().integer()"
+            elif schema_type == 'boolean':
+                return "Joi.boolean()"
+            else:
+                return "Joi.any()"
+        
+        return build_joi(json_schema)
+
     def _generate_cache_key(self, api_analysis: APIAnalysis, profile: TestProfile) -> str:
         """Generate cache key for test suite"""
         key_data = {
@@ -1106,7 +1144,7 @@ REQUIREMENTS:
 4. Use flexible schema validation with additionalProperties: true for schema tests
 5. Generate a COMPLETE, RUNNABLE test script with all necessary imports
 6. Use {self.framework.value} framework syntax
-7. Include axios for HTTP calls and Ajv for schema validation (const Ajv = require('ajv'); const ajv = new Ajv())
+7. Include axios for HTTP calls and Joi for schema validation (const Joi = require('joi'))
 8. Add assertions based on the actual API response
 9. After positive tests, add negative tests (400/401/403/404 errors)
 10. Include edge cases and security tests (SQL injection, XSS)
@@ -1117,7 +1155,7 @@ REQUIREMENTS:
 
 Generate the COMPLETE test script now:"""
 
-            system_message = f"You are an expert test automation engineer. Generate a complete, production-ready {self.framework.value} test script. CRITICAL: Start with POSITIVE tests that verify successful API responses (200 status) - these MUST pass. Then add negative/security tests. Make actual API calls without mocking. Use AJV for schema validation with additionalProperties: true."
+            system_message = f"You are an expert test automation engineer. Generate a complete, production-ready {self.framework.value} test script. CRITICAL: Start with POSITIVE tests that verify successful API responses (200 status) - these MUST pass. Then add negative/security tests. Make actual API calls without mocking. Use Joi for schema validation with .unknown(true) to allow extra properties."
 
             # Get complete test script from LLM
             test_script = await ai.generate(
@@ -1185,8 +1223,7 @@ def generate_random_string(length):
         """Generate necessary imports for the test file"""
         if self.framework == TestFramework.JEST:
             return """const axios = require('axios');
-const Ajv = require('ajv');
-const ajv = new Ajv();"""
+const Joi = require('joi');"""
         elif self.framework == TestFramework.PYTEST:
             return """import pytest
 import requests

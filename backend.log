@@ -1,0 +1,60 @@
+INFO:     Will watch for changes in these directories: ['/Users/sharajrewoo/DemoReposQA/ApiAutopilot/backend']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [42203] using WatchFiles
+2025-10-16 17:48:00,601 - server_v2 - INFO - MongoDB connection configured: mongodb://localhost:27017/api_autopilot
+2025-10-16 17:48:00,601 - server_v2 - INFO - Redis cache configured: redis://localhost:6379
+/Users/sharajrewoo/DemoReposQA/ApiAutopilot/backend/server_v2.py:254: UserWarning: Field name "schema" in "APIFuzzRequest" shadows an attribute in parent "BaseModel"
+  class APIFuzzRequest(BaseModel):
+INFO:     Started server process [42223]
+INFO:     Waiting for application startup.
+2025-10-16 17:48:00,619 - server_v2 - INFO - API Autopilot V2 starting up...
+2025-10-16 17:48:00,632 - server_v2 - INFO - MongoDB connection successful
+2025-10-16 17:48:00,635 - server_v2 - INFO - Redis connection successful
+INFO:     Application startup complete.
+INFO:     127.0.0.1:64533 - "GET /api/v2/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64535 - "GET /api/v2/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64565 - "OPTIONS /api/v2/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64566 - "OPTIONS /api/v2/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64567 - "OPTIONS /api/v2/user/scripts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64566 - "GET /api/v2/auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64567 - "GET /api/v2/auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64567 - "GET /api/v2/user/scripts HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64661 - "OPTIONS /api/v2/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64661 - "POST /api/v2/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64661 - "GET /api/v2/user/scripts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64661 - "OPTIONS /api/v2/generate-tests HTTP/1.1" 200 OK
+2025-10-16 17:48:25,867 - server_v2 - INFO - Inferring schema from captured API response
+2025-10-16 17:48:25,868 - server_v2 - INFO - Generated 4 schema-based test cases
+2025-10-16 17:48:25,868 - server_v2 - INFO - Using AI provider: openai with temperature: 0.1
+2025-10-16 17:48:25,906 - server_v2 - INFO - Calling LLM to generate test script...
+2025-10-16 17:49:02,365 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-16 17:49:02,382 - server_v2 - INFO - LLM returned 3598 characters of test code
+INFO:     127.0.0.1:64661 - "POST /api/v2/generate-tests HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 64954) - "WebSocket /api/v2/ws/execute-tests" [accepted]
+INFO:     connection open
+2025-10-16 17:49:07,827 - test_execution_engine - INFO - Detected dependencies: ['joi', 'axios']
+2025-10-16 17:49:07,834 - test_execution_engine - INFO - Starting dependency installation for TestFrameworkType.JEST
+2025-10-16 17:49:11,789 - test_execution_engine - INFO - Dependency installation completed in 4.0s
+2025-10-16 17:49:11,789 - test_execution_engine - INFO - Starting test execution with command: npx -y jest test.test.js --config jest.config.js --json --outputFile=results.json, timeout: 300s
+2025-10-16 17:49:11,789 - test_execution_engine - INFO - Creating subprocess for command: npx -y jest...
+2025-10-16 17:49:19,352 - test_execution_engine - INFO - Test execution completed in 7.6s
+INFO:     127.0.0.1:49222 - "OPTIONS /api/v2/user/scripts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49222 - "POST /api/v2/user/scripts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49222 - "GET /api/v2/user/scripts HTTP/1.1" 200 OK
+2025-10-16 17:51:01,101 - server_v2 - INFO - Inferring schema from captured API response
+2025-10-16 17:51:01,102 - server_v2 - INFO - Generated 16 schema-based test cases
+2025-10-16 17:51:01,102 - server_v2 - INFO - Using AI provider: openai with temperature: 0.1
+2025-10-16 17:51:01,121 - server_v2 - INFO - Calling LLM to generate test script...
+2025-10-16 17:51:55,538 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-16 17:51:55,544 - server_v2 - INFO - LLM returned 5332 characters of test code
+INFO:     127.0.0.1:49272 - "POST /api/v2/generate-tests HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49794) - "WebSocket /api/v2/ws/execute-tests" [accepted]
+INFO:     connection open
+2025-10-16 17:52:24,937 - test_execution_engine - INFO - Detected dependencies: ['joi', 'axios']
+2025-10-16 17:52:24,940 - test_execution_engine - INFO - Starting dependency installation for TestFrameworkType.JEST
+2025-10-16 17:52:38,660 - test_execution_engine - INFO - Dependency installation completed in 13.7s
+2025-10-16 17:52:38,661 - test_execution_engine - INFO - Starting test execution with command: npx -y jest test.test.js --config jest.config.js --json --outputFile=results.json, timeout: 300s
+2025-10-16 17:52:38,661 - test_execution_engine - INFO - Creating subprocess for command: npx -y jest...
+2025-10-16 17:52:47,189 - test_execution_engine - INFO - Test execution completed in 8.5s
+INFO:     127.0.0.1:50175 - "POST /api/v2/user/scripts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50175 - "GET /api/v2/user/scripts HTTP/1.1" 200 OK
