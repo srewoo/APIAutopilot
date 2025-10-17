@@ -5,6 +5,7 @@ Production-ready implementation with all recommended improvements
 """
 
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, BackgroundTasks, WebSocket, Depends
+from starlette.websockets import WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -2011,17 +2012,30 @@ async def websocket_test_execution_v2(websocket: WebSocket):
                     "success": cancelled
                 })
 
+    except WebSocketDisconnect:
+        # Client disconnected - this is normal, just log it
+        logger.info(f"WebSocket disconnected for execution {execution_id}")
     except Exception as e:
-        await websocket.send_json({
-            "type": "error",
-            "message": str(e),
-            "execution_id": execution_id
-        })
+        # Try to send error if connection is still open
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": str(e),
+                "execution_id": execution_id
+            })
+        except (WebSocketDisconnect, RuntimeError):
+            # Connection already closed, can't send error
+            logger.warning(f"Could not send error to client for execution {execution_id}: {str(e)}")
     finally:
         # Clean up session
         if execution_id in service.execution_sessions:
             del service.execution_sessions[execution_id]
-        await websocket.close()
+        # Try to close if not already closed
+        try:
+            await websocket.close()
+        except (WebSocketDisconnect, RuntimeError):
+            # Already closed, no problem
+            pass
 
 
 @api_router.get("/execution-logs/{execution_id}")
